@@ -1,0 +1,581 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lagos Under Water — Mapping Flood Exposure Across Extreme Rainfall Events</title>
+
+<!-- Fonts -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300..900;1,9..144,300..700&family=DM+Sans:ital,opsz,wght@0,9..40,300..700;1,9..40,300..600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+<!-- Leaflet (bundled locally for reliability on GitHub Pages) -->
+<link rel="stylesheet" href="vendor/leaflet.css">
+<script src="vendor/leaflet.js"></script>
+
+<style>
+  :root {
+    --ink: #0a0e17;
+    --ink-2: #131826;
+    --ink-3: #1c2235;
+    --paper: #f4efe6;
+    --dim: rgba(244, 239, 230, 0.64);
+    --dimmer: rgba(244, 239, 230, 0.38);
+    --line: rgba(244, 239, 230, 0.12);
+    --line-2: rgba(244, 239, 230, 0.22);
+    --low:    #d9f0a3;
+    --medium: #fdae61;
+    --high:   #d73027;
+    --accent: #f7d08a;
+    --warn:   #e36a4b;
+    --blue:   #2b83ba;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html, body { height: 100%; background: var(--ink); color: var(--paper);
+    font-family: 'DM Sans', ui-sans-serif, system-ui, sans-serif;
+    font-feature-settings: 'ss01', 'ss02', 'ss03';
+    -webkit-font-smoothing: antialiased; }
+
+  /* ---------- Layout ---------- */
+  #app { position: relative; width: 100vw; height: 100vh; overflow: hidden; }
+  #map { position: absolute; inset: 0; background: var(--ink); }
+
+  /* Grain overlay for atmosphere */
+  #map::before {
+    content: ''; position: absolute; inset: 0; pointer-events: none; z-index: 1000;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='300' height='300'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3'/><feColorMatrix values='0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 0.04 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+    opacity: 0.5; mix-blend-mode: overlay;
+  }
+
+  /* ---------- Title card (top-left) ---------- */
+  .title-card {
+    position: absolute; top: 24px; left: 24px; z-index: 1010;
+    max-width: 420px;
+    padding: 24px 26px 22px;
+    background: linear-gradient(180deg, rgba(10,14,23,0.92), rgba(10,14,23,0.84));
+    border: 1px solid var(--line); border-radius: 2px;
+    backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+    box-shadow: 0 24px 60px -30px rgba(0,0,0,0.9);
+  }
+  .eyebrow {
+    font-family: 'JetBrains Mono', monospace; font-size: 10.5px; font-weight: 500;
+    letter-spacing: 0.22em; text-transform: uppercase; color: var(--accent);
+    margin-bottom: 14px; display: flex; align-items: center; gap: 10px;
+  }
+  .eyebrow::after { content: ''; flex: 1; height: 1px; background: var(--line-2); }
+  .title-card h1 {
+    font-family: 'Fraunces', 'Times New Roman', serif;
+    font-variation-settings: 'SOFT' 100, 'WONK' 1;
+    font-weight: 400; font-size: 34px; line-height: 1.02;
+    letter-spacing: -0.015em; margin-bottom: 12px;
+  }
+  .title-card h1 em { font-style: italic; color: var(--warn); font-weight: 300; }
+  .title-card p {
+    color: var(--dim); font-size: 13.5px; line-height: 1.55;
+    font-weight: 400;
+  }
+  .byline {
+    margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--line);
+    font-family: 'JetBrains Mono', monospace; font-size: 10.5px;
+    color: var(--dimmer); letter-spacing: 0.04em;
+  }
+
+  /* ---------- Event selector (top-right) ---------- */
+  .event-dock {
+    position: absolute; top: 24px; right: 24px; z-index: 1010;
+    background: rgba(10,14,23,0.92);
+    border: 1px solid var(--line); border-radius: 2px;
+    backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+    box-shadow: 0 24px 60px -30px rgba(0,0,0,0.9);
+    width: 340px; overflow: hidden;
+  }
+  .dock-label {
+    padding: 14px 18px 0; font-family: 'JetBrains Mono', monospace;
+    font-size: 10px; letter-spacing: 0.22em; text-transform: uppercase;
+    color: var(--accent); font-weight: 500;
+  }
+  .event-tabs {
+    display: grid; grid-template-columns: repeat(3, 1fr);
+    gap: 0; padding: 10px 14px 0;
+  }
+  .event-tab {
+    position: relative;
+    font-family: 'Fraunces', serif; font-weight: 300; font-style: italic;
+    font-size: 26px; color: var(--dimmer);
+    background: transparent; border: none; cursor: pointer;
+    padding: 8px 0 6px; transition: color 0.2s;
+  }
+  .event-tab:hover { color: var(--paper); }
+  .event-tab.active { color: var(--paper); }
+  .event-tab.active::after {
+    content: ''; position: absolute; bottom: 0; left: 20%; right: 20%;
+    height: 2px; background: var(--warn);
+  }
+  .event-meta {
+    padding: 14px 18px 18px; border-top: 1px solid var(--line); margin-top: 6px;
+    background: linear-gradient(180deg, rgba(215,48,39,0.06), transparent);
+  }
+  .event-date {
+    font-family: 'JetBrains Mono', monospace; font-size: 11px;
+    color: var(--dim); letter-spacing: 0.04em; margin-bottom: 8px;
+  }
+  .event-rain {
+    display: flex; align-items: baseline; gap: 10px; margin-bottom: 10px;
+  }
+  .event-rain .val {
+    font-family: 'Fraunces', serif; font-weight: 400; font-size: 38px;
+    color: var(--warn); letter-spacing: -0.02em;
+  }
+  .event-rain .unit {
+    font-family: 'JetBrains Mono', monospace; font-size: 10px;
+    color: var(--dim); letter-spacing: 0.12em; text-transform: uppercase;
+  }
+  .event-context {
+    font-size: 12px; color: var(--dim); line-height: 1.5;
+    font-style: italic; border-left: 2px solid var(--warn); padding-left: 10px;
+  }
+
+  /* ---------- Stats (bottom-right) ---------- */
+  .stats-dock {
+    position: absolute; bottom: 24px; right: 24px; z-index: 1010;
+    min-width: 320px;
+    background: rgba(10,14,23,0.92); border: 1px solid var(--line); border-radius: 2px;
+    padding: 16px 18px; backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+    box-shadow: 0 24px 60px -30px rgba(0,0,0,0.9);
+  }
+  .stats-label {
+    font-family: 'JetBrains Mono', monospace; font-size: 10px;
+    letter-spacing: 0.22em; text-transform: uppercase;
+    color: var(--accent); margin-bottom: 12px;
+  }
+  .stack-bar {
+    display: flex; width: 100%; height: 12px; border-radius: 1px; overflow: hidden;
+    margin-bottom: 12px; box-shadow: inset 0 0 0 1px var(--line);
+  }
+  .stack-bar > div { transition: flex 0.6s cubic-bezier(0.22, 1, 0.36, 1); }
+  .stats-rows { display: flex; flex-direction: column; gap: 6px; }
+  .stats-row {
+    display: grid; grid-template-columns: 12px 1fr auto auto;
+    gap: 10px; align-items: baseline;
+    font-size: 12.5px;
+  }
+  .swatch {
+    width: 10px; height: 10px; border-radius: 1px;
+    display: block;
+  }
+  .stats-row .label { color: var(--dim); }
+  .stats-row .pct {
+    font-family: 'JetBrains Mono', monospace; font-weight: 500;
+    font-size: 13px; color: var(--paper);
+  }
+  .stats-row .km2 {
+    font-family: 'JetBrains Mono', monospace; font-size: 10.5px;
+    color: var(--dimmer);
+  }
+
+  /* ---------- Legend + layer control (bottom-left) ---------- */
+  .legend-dock {
+    position: absolute; bottom: 24px; left: 24px; z-index: 1010;
+    width: 300px;
+    background: rgba(10,14,23,0.92); border: 1px solid var(--line); border-radius: 2px;
+    padding: 16px 18px; backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+    box-shadow: 0 24px 60px -30px rgba(0,0,0,0.9);
+  }
+  .legend-label {
+    font-family: 'JetBrains Mono', monospace; font-size: 10px;
+    letter-spacing: 0.22em; text-transform: uppercase;
+    color: var(--accent); margin-bottom: 12px;
+  }
+  .legend-gradient {
+    position: relative; height: 14px; border-radius: 1px; overflow: hidden;
+    background: linear-gradient(90deg, var(--low), var(--medium) 50%, var(--high));
+    margin-bottom: 6px;
+  }
+  .legend-ticks {
+    display: flex; justify-content: space-between;
+    font-family: 'JetBrains Mono', monospace; font-size: 10px;
+    color: var(--dim); margin-bottom: 14px;
+  }
+  .toggle-row {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 8px 0; border-top: 1px solid var(--line);
+    font-size: 12.5px; color: var(--dim);
+  }
+  .toggle-row.first { border-top: none; padding-top: 0; }
+  .toggle-row label { cursor: pointer; display: flex; gap: 10px; align-items: center; }
+
+  /* Custom toggle */
+  .toggle {
+    position: relative; width: 30px; height: 16px; border-radius: 20px;
+    background: var(--ink-3); border: 1px solid var(--line-2);
+    transition: background 0.2s; cursor: pointer; flex-shrink: 0;
+  }
+  .toggle::after {
+    content: ''; position: absolute; top: 1px; left: 1px;
+    width: 12px; height: 12px; border-radius: 50%; background: var(--dim);
+    transition: all 0.2s;
+  }
+  input[type="checkbox"] { display: none; }
+  input[type="checkbox"]:checked + .toggle { background: var(--warn); border-color: var(--warn); }
+  input[type="checkbox"]:checked + .toggle::after { left: 15px; background: var(--ink); }
+
+  .opacity-row {
+    display: flex; align-items: center; gap: 10px;
+    padding: 8px 0; border-top: 1px solid var(--line);
+    font-size: 11.5px; color: var(--dim);
+  }
+  .opacity-row input[type="range"] {
+    flex: 1; -webkit-appearance: none; appearance: none; height: 2px;
+    background: var(--line-2); outline: none; cursor: pointer;
+  }
+  .opacity-row input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none; appearance: none; width: 12px; height: 12px;
+    border-radius: 50%; background: var(--warn); cursor: pointer;
+  }
+  .opacity-row input[type="range"]::-moz-range-thumb {
+    width: 12px; height: 12px; border-radius: 50%; background: var(--warn);
+    cursor: pointer; border: none;
+  }
+  .opacity-row .val {
+    font-family: 'JetBrains Mono', monospace; font-size: 10.5px;
+    color: var(--paper); min-width: 30px; text-align: right;
+  }
+
+  /* ---------- Method button ---------- */
+  .method-btn {
+    position: absolute; bottom: 24px; left: 50%; transform: translateX(-50%);
+    z-index: 1010;
+    background: var(--ink-2); color: var(--paper);
+    border: 1px solid var(--line-2); padding: 11px 20px;
+    font-family: 'JetBrains Mono', monospace; font-size: 10.5px;
+    letter-spacing: 0.18em; text-transform: uppercase; cursor: pointer;
+    border-radius: 2px; backdrop-filter: blur(10px);
+    transition: all 0.2s; box-shadow: 0 20px 40px -20px rgba(0,0,0,0.8);
+  }
+  .method-btn:hover { background: var(--warn); color: var(--ink); border-color: var(--warn); }
+
+  /* ---------- Method modal ---------- */
+  .modal {
+    position: fixed; inset: 0; z-index: 2000; display: none;
+    background: rgba(10,14,23,0.85); backdrop-filter: blur(8px);
+  }
+  .modal.open { display: flex; align-items: center; justify-content: center; }
+  .modal-card {
+    width: min(780px, 92vw); max-height: 85vh; overflow-y: auto;
+    background: var(--ink-2); border: 1px solid var(--line-2);
+    padding: 42px 48px 40px;
+    box-shadow: 0 40px 80px rgba(0,0,0,0.6);
+  }
+  .modal-card h2 {
+    font-family: 'Fraunces', serif; font-weight: 400; font-size: 30px;
+    margin-bottom: 8px; letter-spacing: -0.01em;
+  }
+  .modal-card h3 {
+    font-family: 'JetBrains Mono', monospace; font-size: 10.5px;
+    letter-spacing: 0.22em; text-transform: uppercase;
+    color: var(--accent); margin: 24px 0 10px;
+  }
+  .modal-card p { color: var(--dim); font-size: 14px; line-height: 1.65; margin-bottom: 12px; }
+  .modal-card ul { color: var(--dim); font-size: 13.5px; line-height: 1.7; padding-left: 18px; margin-bottom: 12px; }
+  .modal-card .formula {
+    font-family: 'JetBrains Mono', monospace; font-size: 12.5px;
+    background: var(--ink); padding: 14px 16px; border-left: 3px solid var(--warn);
+    color: var(--paper); margin: 16px 0; line-height: 1.6; overflow-x: auto;
+  }
+  .modal-card .close {
+    position: absolute; top: 20px; right: 22px;
+    background: transparent; border: none; color: var(--dim); cursor: pointer;
+    font-size: 22px; padding: 6px 10px; line-height: 1;
+  }
+  .modal-card .close:hover { color: var(--paper); }
+
+  /* Make Leaflet attribution subtle */
+  .leaflet-control-attribution {
+    background: rgba(10,14,23,0.8) !important; color: var(--dimmer) !important;
+    font-size: 10px !important; padding: 2px 8px !important;
+    border: 1px solid var(--line) !important;
+  }
+  .leaflet-control-attribution a { color: var(--dim) !important; }
+
+  /* Hide default Leaflet zoom — we're going minimal */
+  .leaflet-control-zoom {
+    border: none !important; box-shadow: none !important;
+  }
+  .leaflet-control-zoom a {
+    background: var(--ink-2) !important; color: var(--paper) !important;
+    border: 1px solid var(--line) !important;
+    font-weight: 300 !important; font-family: 'Fraunces', serif !important;
+  }
+
+  /* Responsive */
+  @media (max-width: 900px) {
+    .title-card { max-width: calc(100vw - 48px); }
+    .event-dock, .stats-dock, .legend-dock { width: calc(100vw - 48px); min-width: 0; }
+    .event-dock { top: auto; bottom: 260px; right: 24px; left: 24px; }
+    .method-btn { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<div id="app">
+  <div id="map"></div>
+
+  <!-- Title -->
+  <div class="title-card">
+    <div class="eyebrow">CASA0029 · Urban Analytics</div>
+    <h1>Lagos <em>Under Water</em>— mapping flood exposure across extreme rainfall events</h1>
+    <p>Three 7-day rainfall events from 2015–2024 that ranked in the 95th percentile for Lagos were selected from CHIRPS satellite observations. For each, an Event-based Flood Exposure Index (EFEI) combines elevation, water proximity and rainfall intensity to show who is at risk when the storm hits.</p>
+    <div class="byline">Data · CHIRPS · NASADEM · JRC GSW · Computed in Google Earth Engine</div>
+  </div>
+
+  <!-- Event switcher -->
+  <div class="event-dock">
+    <div class="dock-label">Select event</div>
+    <div class="event-tabs">
+      <button class="event-tab active" data-event="A">A</button>
+      <button class="event-tab" data-event="B">B</button>
+      <button class="event-tab" data-event="C">C</button>
+    </div>
+    <div class="event-meta">
+      <div class="event-date" id="event-date">29 Aug → 4 Sep · 2021</div>
+      <div class="event-rain">
+        <span class="val" id="event-rain-val">184.7</span>
+        <span class="unit">mm · 7-day mean</span>
+      </div>
+      <div class="event-context" id="event-context"></div>
+    </div>
+  </div>
+
+  <!-- Stats -->
+  <div class="stats-dock">
+    <div class="stats-label">Exposure Composition</div>
+    <div class="stack-bar" id="stack-bar">
+      <div style="background: var(--low); flex: 16.3;"></div>
+      <div style="background: var(--medium); flex: 44.8;"></div>
+      <div style="background: var(--high); flex: 38.9;"></div>
+    </div>
+    <div class="stats-rows">
+      <div class="stats-row">
+        <span class="swatch" style="background: var(--low);"></span>
+        <span class="label">Low exposure</span>
+        <span class="pct" id="low-pct">16.3%</span>
+        <span class="km2" id="low-km2">1,335 km²</span>
+      </div>
+      <div class="stats-row">
+        <span class="swatch" style="background: var(--medium);"></span>
+        <span class="label">Medium exposure</span>
+        <span class="pct" id="med-pct">44.8%</span>
+        <span class="km2" id="med-km2">3,668 km²</span>
+      </div>
+      <div class="stats-row">
+        <span class="swatch" style="background: var(--high);"></span>
+        <span class="label">High exposure</span>
+        <span class="pct" id="high-pct">38.9%</span>
+        <span class="km2" id="high-km2">3,188 km²</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Legend + layers -->
+  <div class="legend-dock">
+    <div class="legend-label">EFEI Classes</div>
+    <div class="legend-gradient"></div>
+    <div class="legend-ticks">
+      <span>Low · 1</span><span>Medium · 2</span><span>High · 3</span>
+    </div>
+
+    <div class="toggle-row first">
+      <label for="toggle-event">Event exposure layer</label>
+      <input type="checkbox" id="toggle-event" checked>
+      <span class="toggle"></span>
+    </div>
+    <div class="toggle-row">
+      <label for="toggle-hotspots">Persistent hotspots <span style="opacity:.55;">(all 3 events)</span></label>
+      <input type="checkbox" id="toggle-hotspots">
+      <span class="toggle"></span>
+    </div>
+    <div class="toggle-row">
+      <label for="toggle-diff">Difference map (B − A)</label>
+      <input type="checkbox" id="toggle-diff">
+      <span class="toggle"></span>
+    </div>
+    <div class="opacity-row">
+      <span>Opacity</span>
+      <input type="range" id="opacity" min="20" max="100" value="80">
+      <span class="val" id="opacity-val">80%</span>
+    </div>
+  </div>
+
+  <!-- Methodology button -->
+  <button class="method-btn" id="open-method">◉ Methodology & threshold</button>
+</div>
+
+<!-- Methodology modal -->
+<div class="modal" id="method-modal">
+  <div class="modal-card" style="position: relative;">
+    <button class="close" id="close-method" aria-label="Close">✕</button>
+    <h2>Methodology & Rainfall Threshold</h2>
+
+    <h3>EFEI — Event-based Flood Exposure Index</h3>
+    <div class="formula">EFEI = 0.30 × Elevation_risk + 0.30 × Water_proximity_risk + 0.40 × Rainfall_risk</div>
+    <p>All three components are normalised to 0–1 before combination. Elevation risk is highest in low-lying land (≤ 30 m); water-proximity risk is highest within ~1.5 km of permanent water; rainfall risk comes from the 7-day accumulated rainfall over each storm event.</p>
+
+    <h3>What counts as "extreme" rainfall?</h3>
+    <p>Extreme rainfall events are defined using both meteorological standards and regional hydrological evidence:</p>
+    <ul>
+      <li><strong>Absolute threshold:</strong> &gt; 50 mm/day — the WMO classification for heavy-to-extreme precipitation in tropical environments, widely used in West-African flood studies.</li>
+      <li><strong>Statistical threshold:</strong> the top 5 % (95th percentile) of 7-day accumulated rainfall from the CHIRPS daily product, 2015 – 2024. For Lagos this works out to <strong>91.5 mm</strong> over 7 days.</li>
+    </ul>
+    <p>The combined approach keeps the study consistent with international standards while capturing locally relevant extremes. From all candidate events above the threshold, an algorithm picks the three heaviest episodes that are at least 7 days apart — the events shown on this map.</p>
+
+    <h3>Data Sources</h3>
+    <ul>
+      <li><strong>Rainfall:</strong> CHIRPS Daily (UCSB-CHG) — 0.05° grid, 2015 – 2024.</li>
+      <li><strong>Elevation:</strong> NASADEM HGT (NASA) — ~30 m spatial resolution.</li>
+      <li><strong>Surface water:</strong> JRC Global Surface Water v1.4 — permanent-water mask at 30 m.</li>
+      <li><strong>Processing:</strong> Google Earth Engine. Output: 30 m classified GeoTIFFs.</li>
+    </ul>
+
+    <h3>Reading the Classes</h3>
+    <ul>
+      <li><strong style="color: var(--low);">Class 1 — Low</strong> &nbsp;EFEI ≤ 0.33 · higher elevation, far from water, minor rainfall impact.</li>
+      <li><strong style="color: var(--medium);">Class 2 — Medium</strong> &nbsp;0.33 &lt; EFEI ≤ 0.66 · transitional zones with mixed risk drivers.</li>
+      <li><strong style="color: var(--high);">Class 3 — High</strong> &nbsp;EFEI &gt; 0.66 · low-lying coastal and lagoon-adjacent land hit hard by the storm.</li>
+    </ul>
+  </div>
+</div>
+
+<script>
+// ---------- Config ----------
+// NOTE: Bounds from the exported GeoTIFFs. [S, W, N, E].
+const BOUNDS = [[6.299975, 2.999744], [6.850552, 4.200073]];
+const DIFF_BOUNDS = [[6.299745, 2.999795], [6.850592, 4.200124]];
+
+const EVENTS = {
+  A: {
+    start: '2021-08-29', end: '2021-09-04',
+    dateLabel: '29 Aug → 4 Sep · 2021',
+    rain: 184.72,
+    context: 'CNN at the time: "Lagos could be unlivable in a few decades." NIHSA warned of catastrophic September flooding — this week captured the peak.',
+    stats: { low: 16.3, med: 44.8, high: 38.9, lowKm2: 1335, medKm2: 3668, highKm2: 3188 }
+  },
+  B: {
+    start: '2018-09-05', end: '2018-09-11',
+    dateLabel: '5 Sep → 11 Sep · 2018',
+    rain: 172.48,
+    context: 'Nigeria declared a national disaster in mid-September 2018 after floods killed at least 100 people — our data window captures the peak rainfall of that emergency.',
+    stats: { low: 25.8, med: 36.3, high: 38.0, lowKm2: 2112, medKm2: 2970, highKm2: 3109 }
+  },
+  C: {
+    start: '2024-10-12', end: '2024-10-18',
+    dateLabel: '12 Oct → 18 Oct · 2024',
+    rain: 153.23,
+    context: 'Lagos State called the 17 Oct 2024 downpour "the heaviest in many months"; the Oyan Dam released water, Majidun gauging station hit its annual peak (1.466 m).',
+    stats: { low: 26.0, med: 38.4, high: 35.6, lowKm2: 2129, medKm2: 3142, highKm2: 2919 }
+  }
+};
+
+// ---------- Map setup ----------
+const map = L.map('map', {
+  zoomControl: true,
+  attributionControl: true,
+  zoomSnap: 0.25,
+});
+map.fitBounds(BOUNDS, { padding: [30, 30] });
+
+// Dark basemap — CARTO dark matter
+L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png', {
+  attribution: '&copy; OpenStreetMap · &copy; CARTO · CHIRPS · NASADEM · JRC GSW',
+  subdomains: 'abcd', maxZoom: 19,
+}).addTo(map);
+// Labels on top so overlays sit below
+const labels = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_only_labels/{z}/{x}/{y}{r}.png', {
+  subdomains: 'abcd', maxZoom: 19, pane: 'shadowPane', opacity: 0.65
+}).addTo(map);
+
+// ---------- Overlays ----------
+const overlayOpts = { opacity: 0.8, interactive: false, className: 'efei-overlay' };
+const eventLayers = {
+  A: L.imageOverlay('overlays/event_A.png', BOUNDS, overlayOpts),
+  B: L.imageOverlay('overlays/event_B.png', BOUNDS, overlayOpts),
+  C: L.imageOverlay('overlays/event_C.png', BOUNDS, overlayOpts),
+};
+const hotspotLayer = L.imageOverlay('overlays/hotspots.png', BOUNDS, { opacity: 0.75, interactive: false });
+const diffLayer    = L.imageOverlay('overlays/diff_BA.png', DIFF_BOUNDS, { opacity: 0.8, interactive: false });
+
+let activeEventLayer = eventLayers.A;
+activeEventLayer.addTo(map);
+
+// ---------- Event tab logic ----------
+const tabs = document.querySelectorAll('.event-tab');
+function setEvent(code) {
+  tabs.forEach(t => t.classList.toggle('active', t.dataset.event === code));
+
+  // swap overlay
+  map.removeLayer(activeEventLayer);
+  activeEventLayer = eventLayers[code];
+  if (document.getElementById('toggle-event').checked) activeEventLayer.addTo(map);
+
+  // update UI
+  const e = EVENTS[code];
+  document.getElementById('event-date').textContent = e.dateLabel;
+  document.getElementById('event-rain-val').textContent = e.rain.toFixed(1);
+  document.getElementById('event-context').textContent = e.context;
+
+  // stats
+  document.getElementById('low-pct').textContent   = e.stats.low.toFixed(1) + '%';
+  document.getElementById('med-pct').textContent   = e.stats.med.toFixed(1) + '%';
+  document.getElementById('high-pct').textContent  = e.stats.high.toFixed(1) + '%';
+  document.getElementById('low-km2').textContent   = e.stats.lowKm2.toLocaleString() + ' km²';
+  document.getElementById('med-km2').textContent   = e.stats.medKm2.toLocaleString() + ' km²';
+  document.getElementById('high-km2').textContent  = e.stats.highKm2.toLocaleString() + ' km²';
+
+  // stacked bar
+  const bar = document.getElementById('stack-bar');
+  const [b1, b2, b3] = bar.children;
+  b1.style.flex = e.stats.low;
+  b2.style.flex = e.stats.med;
+  b3.style.flex = e.stats.high;
+}
+tabs.forEach(t => t.addEventListener('click', () => setEvent(t.dataset.event)));
+
+// ---------- Layer toggles ----------
+document.getElementById('toggle-event').addEventListener('change', (ev) => {
+  if (ev.target.checked) activeEventLayer.addTo(map);
+  else map.removeLayer(activeEventLayer);
+});
+document.getElementById('toggle-hotspots').addEventListener('change', (ev) => {
+  if (ev.target.checked) hotspotLayer.addTo(map);
+  else map.removeLayer(hotspotLayer);
+});
+document.getElementById('toggle-diff').addEventListener('change', (ev) => {
+  if (ev.target.checked) diffLayer.addTo(map);
+  else map.removeLayer(diffLayer);
+});
+
+// ---------- Opacity slider (affects the event overlay) ----------
+const opacityInput = document.getElementById('opacity');
+const opacityVal = document.getElementById('opacity-val');
+opacityInput.addEventListener('input', (ev) => {
+  const v = +ev.target.value;
+  opacityVal.textContent = v + '%';
+  Object.values(eventLayers).forEach(l => l.setOpacity(v / 100));
+});
+
+// ---------- Methodology modal ----------
+const modal = document.getElementById('method-modal');
+document.getElementById('open-method').addEventListener('click', () => modal.classList.add('open'));
+document.getElementById('close-method').addEventListener('click', () => modal.classList.remove('open'));
+modal.addEventListener('click', (e) => { if (e.target === modal) modal.classList.remove('open'); });
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape') modal.classList.remove('open'); });
+
+// Initialise
+setEvent('A');
+</script>
+
+</body>
+</html>

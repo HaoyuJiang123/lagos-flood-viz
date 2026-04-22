@@ -1,0 +1,78 @@
+{
+  "bounds": [
+    6.299974919058617,
+    2.9997442282603184,
+    6.850552356695472,
+    4.200073110900823
+  ],
+  "diff_bounds": [
+    6.299744945226169,
+    2.9997953151238903,
+    6.8505918774482595,
+    4.200124197764395
+  ],
+  "events": {
+    "A": {
+      "start": "2021-08-29",
+      "end": "2021-09-04",
+      "rain7_mean_mm": 184.72,
+      "real_context": "Peak of Lagos 2021 rainy season; CNN covered 'Lagos sinking'; NIHSA predicted catastrophic September floods."
+    },
+    "B": {
+      "start": "2018-09-05",
+      "end": "2018-09-11",
+      "rain7_mean_mm": 172.48,
+      "real_context": "Nigeria declared a national disaster after severe floods killed 100+; this week captured the peak rainfall."
+    },
+    "C": {
+      "start": "2024-10-12",
+      "end": "2024-10-18",
+      "rain7_mean_mm": 153.23,
+      "real_context": "Lagos State Government called 17 Oct 'heaviest rainfall in many months'; Oyan Dam release, Majidun water level hit yearly peak."
+    }
+  },
+  "stats": {
+    "A": {
+      "low_pct": 16.3,
+      "medium_pct": 44.8,
+      "high_pct": 38.9,
+      "low_km2": 1333.0,
+      "medium_km2": 3668.0,
+      "high_km2": 3188.0
+    },
+    "B": {
+      "low_pct": 25.8,
+      "medium_pct": 36.3,
+      "high_pct": 38.0,
+      "low_km2": 2111.0,
+      "medium_km2": 2970.0,
+      "high_km2": 3109.0
+    },
+    "C": {
+      "low_pct": 26.0,
+      "medium_pct": 38.4,
+      "high_pct": 35.6,
+      "low_km2": 2129.0,
+      "medium_km2": 3142.0,
+      "high_km2": 2919.0
+    }
+  },
+  "threshold": {
+    "p95_mm_7day": 91.53,
+    "absolute_mm_day": 50
+  },
+  "persistent_high_km2": 2912.0,
+  "persistent_low_km2": 1062.0,
+  "total_study_km2": 8190.0,
+  "formula": "EFEI = 0.3 * Elevation_risk + 0.3 * WaterProximity_risk + 0.4 * Rainfall_risk",
+  "class_palette": {
+    "1": "#d9f0a3",
+    "2": "#fdae61",
+    "3": "#d73027"
+  },
+  "data_sources": {
+    "DEM": "NASA NASADEM_HGT",
+    "water": "JRC Global Surface Water",
+    "rainfall": "CHIRPS Daily 2015-2024"
+  }
+}
