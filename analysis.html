@@ -1,0 +1,775 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Analysis — Event-based Flood Exposure in Lagos</title>
+<style>
+  :root {
+    --bg: #0a0e17;
+    --panel: #121826;
+    --panel-2: #1a2235;
+    --fg: #f4efe6;
+    --dim: #9aa3b0;
+    --muted: #6b7280;
+    --accent: #fdae61;
+    --accent-warm: #e36a4b;
+    --accent-hot: #d73027;
+    --accent-cool: #5e9bd1;
+    --low: #d9f0a3;
+    --med: #fdae61;
+    --high: #d73027;
+    --line: rgba(244, 239, 230, 0.08);
+    --line-strong: rgba(244, 239, 230, 0.18);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { background: var(--bg); color: var(--fg); }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+    font-size: 16px;
+    line-height: 1.65;
+    -webkit-font-smoothing: antialiased;
+  }
+  a { color: var(--accent); text-decoration: none; border-bottom: 1px solid rgba(253, 174, 97, 0.4); }
+  a:hover { color: #ffd1a3; border-bottom-color: var(--accent); }
+  /* ------- Top nav ------- */
+  .topnav {
+    position: sticky; top: 0; z-index: 50;
+    background: rgba(10, 14, 23, 0.85);
+    backdrop-filter: saturate(140%) blur(8px);
+    -webkit-backdrop-filter: saturate(140%) blur(8px);
+    border-bottom: 1px solid var(--line);
+  }
+  .topnav-inner {
+    max-width: 1200px; margin: 0 auto;
+    padding: 14px 32px;
+    display: flex; align-items: center; justify-content: space-between;
+    font-size: 14px;
+  }
+  .brand { font-weight: 600; letter-spacing: 0.02em; color: var(--fg); }
+  .brand .dot { color: var(--accent-hot); }
+  .topnav nav { display: flex; gap: 22px; }
+  .topnav nav a {
+    color: var(--dim); border: none; font-size: 13px;
+    text-transform: uppercase; letter-spacing: 0.08em;
+  }
+  .topnav nav a:hover { color: var(--fg); }
+  .topnav nav a.cta {
+    color: var(--bg);
+    background: var(--accent);
+    padding: 6px 14px; border-radius: 4px;
+    border: none;
+  }
+  .topnav nav a.cta:hover { background: #ffc488; color: var(--bg); }
+
+  /* ------- Hero ------- */
+  .hero {
+    max-width: 1080px; margin: 0 auto;
+    padding: 80px 32px 48px;
+  }
+  .hero .eyebrow {
+    color: var(--accent); font-size: 13px;
+    text-transform: uppercase; letter-spacing: 0.18em;
+    margin-bottom: 16px;
+  }
+  .hero h1 {
+    font-size: 44px; line-height: 1.15; font-weight: 700;
+    margin-bottom: 18px;
+    letter-spacing: -0.01em;
+  }
+  .hero h1 em {
+    font-style: normal; color: var(--accent-warm);
+    background: linear-gradient(180deg, transparent 65%, rgba(227, 106, 75, 0.25) 65%);
+    padding: 0 4px;
+  }
+  .hero .subtitle {
+    color: var(--dim); font-size: 18px; max-width: 760px;
+    margin-bottom: 28px;
+  }
+  .hero .meta {
+    color: var(--muted); font-size: 13px;
+    border-top: 1px solid var(--line); padding-top: 20px;
+    display: flex; flex-wrap: wrap; gap: 24px;
+  }
+  .hero .meta span strong { color: var(--fg); font-weight: 500; }
+
+  /* ------- Headline strip ------- */
+  .headline {
+    max-width: 1080px; margin: 0 auto 60px;
+    padding: 0 32px;
+  }
+  .headline-grid {
+    display: grid; grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+    background: var(--panel);
+    border-left: 3px solid var(--accent-hot);
+    padding: 28px 32px;
+  }
+  .headline-grid .stat { padding-right: 8px; }
+  .headline-grid .stat .num {
+    font-size: 32px; font-weight: 700; color: var(--accent);
+    letter-spacing: -0.02em; line-height: 1.1;
+    display: block;
+  }
+  .headline-grid .stat .label {
+    font-size: 12px; color: var(--dim);
+    text-transform: uppercase; letter-spacing: 0.06em;
+    margin-top: 6px; display: block;
+  }
+  .headline-grid .stat:nth-child(2) .num { color: #d8c89c; }
+  .headline-grid .stat:nth-child(3) .num { color: var(--accent-cool); }
+  .headline-grid .stat:nth-child(4) .num { color: var(--low); }
+
+  /* ------- Sections ------- */
+  section { max-width: 1080px; margin: 0 auto; padding: 0 32px 80px; }
+  section.full { max-width: 1200px; }
+  .section-eyebrow {
+    color: var(--accent); font-size: 12px;
+    text-transform: uppercase; letter-spacing: 0.16em;
+    margin-bottom: 12px; display: block;
+  }
+  h2 {
+    font-size: 30px; font-weight: 700; line-height: 1.25;
+    margin-bottom: 16px;
+    letter-spacing: -0.005em;
+  }
+  h3 {
+    font-size: 22px; font-weight: 600; line-height: 1.3;
+    margin: 36px 0 12px;
+  }
+  p { margin-bottom: 16px; color: var(--fg); max-width: 78ch; }
+  p.lead { font-size: 18px; color: var(--fg); margin-bottom: 20px; }
+  p.dim { color: var(--dim); font-size: 14px; }
+  blockquote {
+    border-left: 3px solid var(--accent);
+    padding: 6px 0 6px 20px;
+    margin: 22px 0;
+    color: var(--fg);
+    font-size: 17px;
+  }
+  ul, ol { margin: 0 0 18px 20px; color: var(--fg); }
+  li { margin-bottom: 6px; max-width: 76ch; }
+  code {
+    background: var(--panel-2); color: var(--low);
+    padding: 1px 6px; border-radius: 3px;
+    font-family: "SF Mono", Menlo, monospace; font-size: 13.5px;
+  }
+
+  /* ------- Figure cards ------- */
+  .figcard {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    padding: 18px 20px 22px;
+    margin: 32px 0 36px;
+  }
+  .figcard .figmeta {
+    display: flex; align-items: baseline; justify-content: space-between;
+    margin-bottom: 14px;
+    padding-bottom: 10px; border-bottom: 1px solid var(--line);
+  }
+  .figcard .fignum {
+    color: var(--accent); font-size: 12px;
+    text-transform: uppercase; letter-spacing: 0.12em;
+    font-weight: 600;
+  }
+  .figcard .figtag { color: var(--muted); font-size: 11.5px; }
+  .figcard img {
+    width: 100%; height: auto; display: block;
+    border-radius: 3px;
+    background: var(--bg);
+  }
+  .figcaption {
+    color: var(--dim); font-size: 13.5px; line-height: 1.55;
+    margin-top: 14px; padding-top: 10px;
+    border-top: 1px solid var(--line);
+  }
+  .figcaption strong { color: var(--fg); font-weight: 500; }
+
+  /* ------- Three-event card row ------- */
+  .events-row {
+    display: grid; grid-template-columns: repeat(3, 1fr);
+    gap: 16px; margin: 24px 0 32px;
+  }
+  .event-card {
+    background: var(--panel);
+    border-top: 3px solid var(--accent-hot);
+    padding: 18px 20px 20px;
+  }
+  .event-card:nth-child(2) { border-top-color: var(--accent-warm); }
+  .event-card:nth-child(3) { border-top-color: var(--accent); }
+  .event-card .label {
+    color: var(--accent); font-size: 12px; font-weight: 600;
+    text-transform: uppercase; letter-spacing: 0.1em;
+  }
+  .event-card .dates {
+    font-size: 17px; font-weight: 600; color: var(--fg);
+    margin: 6px 0 4px;
+  }
+  .event-card .rain {
+    color: #d8c89c; font-size: 24px; font-weight: 700;
+    margin-bottom: 8px; display: block;
+    letter-spacing: -0.01em;
+  }
+  .event-card .rain small { color: var(--dim); font-size: 12px; font-weight: 400; }
+  .event-card .ctx { font-size: 13.5px; color: var(--dim); line-height: 1.55; }
+
+  /* ------- Methodology grid ------- */
+  .method-grid {
+    display: grid; grid-template-columns: 1fr 1fr 1fr;
+    gap: 14px; margin: 24px 0;
+  }
+  .method-cell {
+    background: var(--panel-2);
+    border-left: 2px solid var(--accent);
+    padding: 14px 18px;
+  }
+  .method-cell:nth-child(1) { border-left-color: var(--low); }
+  .method-cell:nth-child(2) { border-left-color: var(--accent-cool); }
+  .method-cell:nth-child(3) { border-left-color: var(--accent-warm); }
+  .method-cell .w {
+    color: var(--accent); font-weight: 700; font-size: 18px;
+  }
+  .method-cell h4 {
+    margin: 4px 0 6px; font-size: 14px; color: var(--fg);
+    text-transform: uppercase; letter-spacing: 0.06em;
+  }
+  .method-cell p {
+    font-size: 13px; color: var(--dim); margin: 0;
+  }
+  .formula {
+    background: var(--panel-2);
+    padding: 22px 28px;
+    margin: 22px 0 12px;
+    text-align: center;
+    font-family: "SF Mono", Menlo, monospace;
+    font-size: 17px; color: var(--fg);
+    border-radius: 4px;
+    border-top: 2px solid var(--accent);
+  }
+  .formula .var { color: var(--accent); }
+  .formula .w { color: var(--accent-warm); font-weight: 700; }
+
+  /* ------- Limitations / refs ------- */
+  .twocol {
+    display: grid; grid-template-columns: 1fr 1fr;
+    gap: 32px; margin-top: 12px;
+  }
+  .twocol li { font-size: 14.5px; color: var(--dim); }
+  .twocol li strong { color: var(--fg); font-weight: 500; }
+
+  .refs {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    padding: 24px 28px;
+    margin-top: 16px;
+    border-radius: 4px;
+  }
+  .refs ul { list-style: none; margin: 0; }
+  .refs li {
+    font-size: 13.5px; color: var(--dim); padding: 8px 0;
+    border-bottom: 1px solid var(--line);
+    max-width: none;
+  }
+  .refs li:last-child { border-bottom: none; }
+  .refs li strong { color: var(--fg); font-weight: 500; }
+
+  /* ------- Section divider ------- */
+  .divider {
+    border: none; border-top: 1px solid var(--line);
+    max-width: 1080px; margin: 0 auto 60px;
+  }
+
+  /* ------- Footer ------- */
+  footer {
+    margin-top: 40px;
+    border-top: 1px solid var(--line);
+    padding: 32px;
+    text-align: center;
+    color: var(--muted); font-size: 13px;
+  }
+  footer a { color: var(--dim); border-bottom: none; }
+  footer a:hover { color: var(--fg); }
+
+  /* ------- Responsive ------- */
+  @media (max-width: 820px) {
+    .hero h1 { font-size: 32px; }
+    .hero { padding: 56px 22px 36px; }
+    section { padding: 0 22px 56px; }
+    .headline { padding: 0 22px; }
+    .headline-grid { grid-template-columns: 1fr 1fr; padding: 22px 24px; }
+    .events-row { grid-template-columns: 1fr; }
+    .method-grid { grid-template-columns: 1fr; }
+    .twocol { grid-template-columns: 1fr; }
+    .topnav-inner { padding: 12px 18px; }
+    .topnav nav { gap: 14px; }
+    .topnav nav a { font-size: 12px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="topnav">
+  <div class="topnav-inner">
+    <div class="brand">Lagos Flood Exposure <span class="dot">·</span> Analysis</div>
+    <nav>
+      <a href="#framing">Why Lagos</a>
+      <a href="#method">Method</a>
+      <a href="#findings">Findings</a>
+      <a href="#limits">Limits</a>
+      <a class="cta" href="index.html">← Map</a>
+    </nav>
+  </div>
+</div>
+
+<!-- ========== HERO ========== -->
+<header class="hero" id="top">
+  <div class="eyebrow">CASA0029 · Group Project · Analysis</div>
+  <h1>Lagos's flood geography is <em>mostly structural</em>, but the storm decides who tips over the edge.</h1>
+  <p class="subtitle">
+    We compared three extreme rainfall events from the past decade to ask whether Lagos's
+    flood-exposure surface really shifts with the storm — or whether the same coastal,
+    lagoon-fringed footprint always lights up. The honest answer: both, but unequally.
+  </p>
+  <div class="meta">
+    <span><strong>Study area</strong> · Lagos metropolitan area · 8,190 km²</span>
+    <span><strong>Resolution</strong> · 30 m grid (NASADEM)</span>
+    <span><strong>Window</strong> · 2015 – 2024 daily CHIRPS</span>
+    <span><strong>Index</strong> · EFEI = 0.3 elevation + 0.3 water proximity + 0.4 rainfall</span>
+  </div>
+</header>
+
+<!-- ========== HEADLINE STRIP ========== -->
+<div class="headline">
+  <div class="headline-grid">
+    <div class="stat">
+      <span class="num">35.6%</span>
+      <span class="label">Always High exposure<br>≈ 2,912 km² · all 3 events</span>
+    </div>
+    <div class="stat">
+      <span class="num">30.0%</span>
+      <span class="label">Always Medium<br>≈ 2,453 km²</span>
+    </div>
+    <div class="stat">
+      <span class="num">21.5%</span>
+      <span class="label">Event-sensitive<br>≈ 1,762 km² shift class</span>
+    </div>
+    <div class="stat">
+      <span class="num">13.0%</span>
+      <span class="label">Always Low<br>≈ 1,062 km²</span>
+    </div>
+  </div>
+</div>
+
+<!-- ========== FRAMING ========== -->
+<section id="framing">
+  <span class="section-eyebrow">01 · Why Lagos, why event-based</span>
+  <h2>A static map is the wrong unit of analysis for a city like Lagos.</h2>
+  <p class="lead">
+    Lagos is built on lagoon margins, sandbars, and reclaimed coastal land. Wet-season flooding
+    has triggered <strong>three national disaster declarations in the past fifteen years</strong> (2012, 2018, 2022),
+    displaced hundreds of thousands of residents, and is projected to intensify as the metropolitan
+    area grows toward an estimated 32.6 million people by 2050.
+  </p>
+  <p>
+    Conventional flood-susceptibility maps average hazard over decades and produce a single
+    time-invariant surface. This is a defensible engineering choice, but it leaves a
+    communication problem: <strong>adaptation, drainage operations and emergency response all
+    happen at the scale of individual storms</strong>. A resident in Lekki does not
+    experience "average" rainfall — they experience September 2021. A drainage engineer
+    does not design for "average" — they design for the next event in the tail of the
+    distribution.
+  </p>
+  <p>
+    Our project reframes flood exposure as <strong>an interaction between fixed urban
+    geography and the particular storm that arrives</strong>. We hold the structural
+    inputs constant — terrain and proximity to persistent water — and let the rainfall
+    component vary across three real, automatically-selected extreme events. The result is
+    a comparative visualisation: same city, three storms, three exposure surfaces.
+    The differences and the persistences are both informative.
+  </p>
+</section>
+
+<hr class="divider">
+
+<!-- ========== METHODOLOGY ========== -->
+<section id="method">
+  <span class="section-eyebrow">02 · The Event-based Flood Exposure Index</span>
+  <h2>Three open Earth-observation layers, weighted as a deliberate design choice.</h2>
+  <p>
+    The EFEI is a weighted linear combination of three components, each rescaled to [0, 1].
+    Weights are not empirically calibrated — they are an explicit analytical position:
+    persistent physical determinants jointly carry 60%, the event-specific signal carries 40%.
+    This balance lets a storm meaningfully reshape the exposure surface without overriding
+    the structural role of terrain and water.
+  </p>
+
+  <div class="formula">
+    EFEI = <span class="w">0.3</span> · <span class="var">Elevation_risk</span>
+    + <span class="w">0.3</span> · <span class="var">WaterProximity_risk</span>
+    + <span class="w">0.4</span> · <span class="var">Rainfall_risk</span>
+  </div>
+
+  <div class="method-grid">
+    <div class="method-cell">
+      <div class="w">0.3</div>
+      <h4>Elevation</h4>
+      <p>NASADEM (30 m). Inverted and capped at 30 m above sea level — pixels above the cap receive zero elevation risk. Lagos's median elevation is well under 10 m.</p>
+    </div>
+    <div class="method-cell">
+      <div class="w">0.3</div>
+      <h4>Water proximity</h4>
+      <p>Distance transform from JRC Global Surface Water (occurrence &gt; 50%). Inverted and capped at 1,500 m — beyond that, persistent-water encroachment without pluvial surcharge is unrealistic.</p>
+    </div>
+    <div class="method-cell">
+      <div class="w">0.4</div>
+      <h4>Rainfall (event-specific)</h4>
+      <p>CHIRPS Daily (~5.5 km) summed over the 7-day event window, focal-mean smoothed at 2 km, rescaled across a <strong>fixed 50–200 mm range</strong> — so the three EFEI surfaces are directly comparable.</p>
+    </div>
+  </div>
+
+  <h3>Event selection</h3>
+  <p>
+    Events were selected automatically rather than picked from headline coverage. We computed
+    the 7-day rolling mean rainfall across the study area for every day of 2015 – 2024,
+    identified the 95th percentile threshold (≈ 91.5 mm), and chose three events at or above
+    that threshold separated by at least seven days to ensure meteorological independence.
+  </p>
+
+  <div class="events-row">
+    <div class="event-card">
+      <div class="label">Event A</div>
+      <div class="dates">29 Aug – 4 Sep 2021</div>
+      <span class="rain">184.7 mm <small>· 7-day mean</small></span>
+      <p class="ctx">Peak of the 2021 wet season. NIHSA issued a catastrophic-flood warning for September. Lagos's most intense 7-day window in the decade.</p>
+    </div>
+    <div class="event-card">
+      <div class="label">Event B</div>
+      <div class="dates">5 – 11 Sep 2018</div>
+      <span class="rain">172.5 mm <small>· 7-day mean</small></span>
+      <p class="ctx">2018 Nigeria national disaster declaration; over 100 flood-related deaths reported nationally during the wider event period.</p>
+    </div>
+    <div class="event-card">
+      <div class="label">Event C</div>
+      <div class="dates">12 – 18 Oct 2024</div>
+      <span class="rain">153.2 mm <small>· 7-day mean</small></span>
+      <p class="ctx">Late-season tail event. Coincided with the Oyan Dam controlled release; Majidun gauge hit its 1.466 m annual peak.</p>
+    </div>
+  </div>
+
+  <p class="dim">
+    All three events fall in the late rainy season (Aug – Oct), characteristic of extreme
+    precipitation in coastal West Africa. Using an automated selection criterion rather than
+    cherry-picking historically "notable" storms removes subjective bias and makes the
+    selection reproducible.
+  </p>
+</section>
+
+<hr class="divider">
+
+<!-- ========== FINDINGS — FIG 1 ========== -->
+<section id="findings">
+  <span class="section-eyebrow">03 · Finding 01 · Per-event exposure composition</span>
+  <h2>The same three classes, but the mix changes across storms.</h2>
+  <p>
+    Before looking at where the exposure lands, it helps to ask how much of the city falls
+    into each class under each event. Figure 1 stacks the three EFEI classes — Low, Medium,
+    High — for Events A, B, and C, using the same fixed thresholds (Low ≤ 0.33, Medium 0.34 – 0.66,
+    High &gt; 0.66) so the bars are directly comparable.
+  </p>
+
+  <div class="figcard">
+    <div class="figmeta">
+      <span class="fignum">Figure 01 · Class composition by event</span>
+      <span class="figtag">Stacked share of study area · 30 m grid</span>
+    </div>
+    <img src="figures_v2/fig01_event_composition.png" alt="Stacked bar chart showing the share of Lagos in Low, Medium, High EFEI classes for Events A, B and C.">
+    <div class="figcaption">
+      <strong>Read:</strong> Event A is the most aggressive — only 16.3% of the city falls into the Low band, with 38.9% in the High band.
+      Events B and C move comparable shares into High (38.0% and 35.6%), but they shift more area into Low (≈ 26%) than Event A does.
+      The High share is remarkably stable across events; what storms primarily reshuffle is the boundary between Low and Medium.
+    </div>
+  </div>
+
+  <p>
+    The non-trivial finding here is that <strong>Event A pushed roughly 9 percentage points
+    more of Lagos into the Medium-or-High band than Event B</strong>, despite Event A's 7-day
+    rainfall total being only ≈ 7% higher than B's. The EFEI is non-linear in rainfall
+    intensity: a moderately worse storm yields a disproportionately worse exposure surface,
+    because the rainfall component pushes more pixels past the Low/Medium threshold rather
+    than uniformly raising the score. This is exactly the kind of pattern that a static
+    susceptibility map cannot show.
+  </p>
+</section>
+
+<!-- ========== FINDING 02 — FIG 2 ========== -->
+<section>
+  <span class="section-eyebrow">04 · Finding 02 · Persistence over events</span>
+  <h2>Roughly one third of Lagos is "always High" — adaptation should chase that, not the next storm.</h2>
+  <p>
+    If the per-event composition is the easy story, the persistence pattern is the analytically
+    important one. We classified every pixel by its behaviour <em>across</em> all three events:
+    is it High in all three? Medium in all three? Low in all three? Or does it shift class
+    between storms?
+  </p>
+
+  <div class="figcard">
+    <div class="figmeta">
+      <span class="fignum">Figure 02 · Persistent flood-exposure typology</span>
+      <span class="figtag">Pixel-level intersection · Events A ∩ B ∩ C</span>
+    </div>
+    <img src="figures_v2/fig02_persistent_typology.png" alt="Donut and bar chart breaking metropolitan Lagos into four typology classes: 35.6% Always High, 30.0% Always Medium, 21.5% Event-sensitive, 13.0% Always Low.">
+    <div class="figcaption">
+      <strong>Read:</strong> 78.5% of metropolitan Lagos sits in a class it never leaves across the three events.
+      Only 21.5% of the city actually changes class between storms.
+      The High footprint alone — 2,912 km² — is roughly half the size of metropolitan London by area.
+    </div>
+  </div>
+
+  <blockquote>
+    The geography of risk in Lagos is persistent rather than stochastic. The structural
+    footprint is large, and it does not move very much when the storm changes.
+  </blockquote>
+
+  <p>
+    This matters for how the index should be interpreted. The 21.5% "event-sensitive" zone
+    is where the EFEI's event-specific component is doing the meaningful work — these are
+    the pixels for which the answer to "is this place flood-exposed?" depends on which storm
+    you ask about. For the rest of the city, the answer is fixed by terrain and water, and
+    individual storms only modulate it.
+  </p>
+</section>
+
+<!-- ========== FINDING 03 — FIG 6 (typology map) ========== -->
+<section class="full">
+  <span class="section-eyebrow">05 · Finding 03 · Where the structural hotspots actually are</span>
+  <h2>The persistent-High footprint is a continuous ribbon along the lagoons and the coast.</h2>
+  <p>
+    Knowing that 35.6% of Lagos is "always High" is one thing. Knowing <em>where</em> those
+    pixels are is the actionable part. Figure 6 maps every pixel of the study area by its
+    persistence class.
+  </p>
+
+  <div class="figcard">
+    <div class="figmeta">
+      <span class="fignum">Figure 06 · Spatial typology map</span>
+      <span class="figtag">Mode-downsampled to 120 m for display · BBox 3.0 – 4.2°E, 6.3 – 6.85°N</span>
+    </div>
+    <img src="figures_v2/fig06_typology_map.png" alt="Map of Lagos showing where the always-high (red), always-medium (gold), event-sensitive (slate), and always-low (yellow-green) pixels are located. The always-high band wraps the lagoon margins and the coast.">
+    <div class="figcaption">
+      <strong>Read:</strong> The red (Always High) class forms a near-continuous ribbon framing
+      the Lagos and Lekki lagoons and the Atlantic coast — covering the
+      <strong>Lekki–Victoria Island corridor, Apapa, Ajegunle and Makoko</strong>, all of which are
+      documented in academic and grey literature as historically flood-prone.
+      Inland uplands to the north are consistently Low.
+      The slate-grey "Event-sensitive" pixels concentrate at the northern fringe of the lagoon
+      complex and around the rainfall-influenced upland transition — the zone where which storm
+      matters most.
+    </div>
+  </div>
+
+  <p>
+    This figure is the project's primary qualitative validation: the structural high-exposure
+    footprint matches the geographic features that any Lagos resident or hydrologist would
+    name as flood-prone, without having been told to. We did not feed the model historical
+    flood reports or built-up area; we fed it elevation, water proximity, and three storms.
+    The fact that the resulting "always High" zone reproduces the lagoon margin and coastal
+    belt is consistency, not circularity.
+  </p>
+</section>
+
+<!-- ========== FINDING 04 — FIG 3 (three event maps) ========== -->
+<section class="full">
+  <span class="section-eyebrow">06 · Finding 04 · How each event's surface differs</span>
+  <h2>The three storms produce visibly different exposure surfaces, but they share a backbone.</h2>
+  <p>
+    Figure 3 shows the EFEI Class raster for each of the three events side by side. The colour
+    ramp and class breaks are identical, so the maps are directly comparable.
+  </p>
+
+  <div class="figcard">
+    <div class="figmeta">
+      <span class="fignum">Figure 03 · Three events, side by side</span>
+      <span class="figtag">EFEI Class raster · A · B · C</span>
+    </div>
+    <img src="figures_v2/fig03_three_event_maps.png" alt="Three side-by-side maps of Lagos showing the EFEI Class for Events A, B and C using the same colour ramp.">
+    <div class="figcaption">
+      <strong>Read:</strong> All three maps show the same lagoon-and-coast High-exposure backbone.
+      What differs is the inland reach: Event A pushes High exposure further north and east, especially
+      across the rainfall-saturated rural fringes, while Event B and Event C show retreat in those
+      same zones. The lagoon margin is essentially invariant.
+    </div>
+  </div>
+
+  <p>
+    The takeaway from looking at the three maps together is the inverse of what a viewer
+    might naively expect from a "scenario-based" map series: the dominant impression is
+    <strong>visual similarity</strong>, not difference. The interesting differences live in
+    the interior, away from water — exactly the zone where the rainfall component is the
+    only thing the EFEI is moving.
+  </p>
+</section>
+
+<!-- ========== FINDING 05 — FIG 4 (diff map) ========== -->
+<section class="full">
+  <span class="section-eyebrow">07 · Finding 05 · Where the storm matters most</span>
+  <h2>The B − A difference map isolates the pixels where rainfall, not terrain, drives the score.</h2>
+  <p>
+    To make the cross-event difference legible, Figure 4 subtracts the continuous EFEI
+    surfaces of the two highest-rainfall events. Cool colours (blue) mean Event B was
+    <em>lower</em> exposure than Event A in that pixel; warm colours (red) mean Event B
+    was higher.
+  </p>
+
+  <div class="figcard">
+    <div class="figmeta">
+      <span class="fignum">Figure 04 · ΔEFEI = B − A</span>
+      <span class="figtag">Continuous difference · diverging palette · 30 m grid</span>
+    </div>
+    <img src="figures_v2/fig04_diff_BA.png" alt="Diverging colour map of the EFEI difference between Events B and A across Lagos. Most of the city is cool-coloured.">
+    <div class="figcaption">
+      <strong>Read:</strong> 75.8% of pixels are cooler under B than under A.
+      Event A's rainfall pushed the city's exposure higher almost everywhere.
+      The strongest absolute differences are concentrated in the
+      <strong>northern fringe and the eastern lagoon margin</strong> — the parts of Lagos
+      where the rainfall component of the EFEI does most of the work, because elevation
+      and water-proximity contributions are saturated low or saturated high respectively.
+    </div>
+  </div>
+
+  <p>
+    The lagoon margin and coastal ribbon, by contrast, show very small differences between
+    the two events: their EFEI is dominated by the structural components, which by
+    construction do not change between storms. This is the visual confirmation of the
+    persistence story — and it is also what the difference map is <em>supposed</em> to show
+    if the index is behaving correctly.
+  </p>
+</section>
+
+<!-- ========== FINDING 06 — FIG 5 (transitions) ========== -->
+<section>
+  <span class="section-eyebrow">08 · Finding 06 · How class membership shifts</span>
+  <h2>When a pixel does change class between storms, it almost never jumps two bands.</h2>
+  <p>
+    The 21.5% of Lagos that is "event-sensitive" is doing something specific: pixels move
+    between adjacent classes (Low ↔ Medium, Medium ↔ High), but they almost never jump from
+    Low to High or High to Low between events. Figure 5 shows the row-normalised transition
+    matrices.
+  </p>
+
+  <div class="figcard">
+    <div class="figmeta">
+      <span class="fignum">Figure 05 · Cross-event class transitions</span>
+      <span class="figtag">3 × 3 row-normalised confusion matrices</span>
+    </div>
+    <img src="figures_v2/fig05_class_transitions.png" alt="Three 3-by-3 transition matrices showing what fraction of pixels in each class under one event end up in each class under the next.">
+    <div class="figcaption">
+      <strong>Read:</strong> The diagonals dominate every matrix. Cells far from the diagonal
+      (Low → High, High → Low) are essentially empty.
+      When the matrix off-diagonal is non-trivial, it is overwhelmingly between adjacent classes:
+      High pixels under Event A that change class under B almost all become Medium, not Low.
+      The structural high-exposure zones do not disappear; they slide along the spectrum.
+    </div>
+  </div>
+
+  <p>
+    This is the analytically tightest statement we can make about the model's behaviour:
+    the EFEI is event-sensitive at the boundary between adjacent classes, and event-insensitive
+    in the bulk. For an index whose explicit goal is to separate structural from event-driven
+    risk, this is exactly the right behaviour to see.
+  </p>
+</section>
+
+<hr class="divider">
+
+<!-- ========== VALIDATION ========== -->
+<section id="validation">
+  <span class="section-eyebrow">09 · Validation</span>
+  <h2>Three lightweight consistency checks — and what would be needed for a stronger one.</h2>
+  <p>
+    Validation in this project is qualitative, by design. The EFEI is an exposure index,
+    not a hydraulic flood model — so the right validation question is "do the high-exposure
+    zones the index produces correspond to where Lagos actually floods?", not "does the
+    inundation depth match a gauge?".
+  </p>
+  <ol>
+    <li><strong>Hydro-geographic alignment.</strong> The persistent High footprint forms a continuous ribbon along the Lagos and Lekki lagoons and the Atlantic coastline. This is consistent with first-order hydrology in a low-lying coastal city.</li>
+    <li><strong>Documented flood-prone neighbourhoods.</strong> The same footprint covers the Lekki–Victoria Island corridor, Apapa, Ajegunle and Makoko — all repeatedly named as flood-affected in academic and grey literature.</li>
+    <li><strong>Event-specific shifts match rainfall.</strong> The B − A difference map's spatial structure tracks the difference in CHIRPS rainfall pattern between the two events. Rainfall-driven shifts concentrate where the structural components are not already saturated.</li>
+  </ol>
+  <p class="dim">
+    A stronger validation would compare each event's high-exposure footprint to a Sentinel-1
+    SAR water-extent product for the same dates. This was scoped but not delivered within
+    the project timeframe and is noted as an immediate next step.
+  </p>
+</section>
+
+<!-- ========== LIMITATIONS ========== -->
+<section id="limits">
+  <span class="section-eyebrow">10 · Limitations</span>
+  <h2>What this project is not.</h2>
+  <div class="twocol">
+    <ul>
+      <li><strong>Not a hydraulic model.</strong> EFEI is a susceptibility / exposure index — it does not predict water depth, inundation extent, or flood duration.</li>
+      <li><strong>CHIRPS resolution.</strong> The ~5.5 km native grid limits how much sub-city detail the rainfall component can carry. Smoothing at 2 km is a deliberate downstream choice.</li>
+      <li><strong>NASADEM is bare-earth.</strong> 30 m elevation cannot capture building-scale drainage, blocked culverts, or fine-grained microtopography.</li>
+      <li><strong>Bounding box, not administrative boundary.</strong> The study area is a rectangle covering Lagos State plus part of neighbouring Ogun State.</li>
+    </ul>
+    <ul>
+      <li><strong>Weights are a design choice.</strong> 0.3 / 0.3 / 0.4 is not empirically calibrated. Different weights would produce different surfaces.</li>
+      <li><strong>Component correlation.</strong> Elevation and water proximity are likely substantially correlated in a low-lying coastal city — part of their combined weight reflects the same underlying signal.</li>
+      <li><strong>Hazard, not vulnerability.</strong> The EFEI does not incorporate population, built-up area, household income or social vulnerability. Population overlay analyses are presented as supplementary material.</li>
+      <li><strong>Persistent-water mask only.</strong> Ephemeral water bodies that show up under &lt;50% occurrence are not treated as water for the proximity component.</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ========== REFERENCES ========== -->
+<section id="references">
+  <span class="section-eyebrow">11 · Sources & References</span>
+  <h2>Open data, open methods.</h2>
+
+  <h3>Earth-observation datasets</h3>
+  <div class="refs">
+    <ul>
+      <li><strong>NASADEM</strong> · NASA JPL (2020). NASADEM Merged DEM Global 1 arc second V001. NASA EOSDIS Land Processes DAAC. <a href="https://doi.org/10.5067/MEaSUREs/NASADEM/NASADEM_HGT.001">doi.org/10.5067/MEaSUREs/NASADEM/NASADEM_HGT.001</a></li>
+      <li><strong>JRC Global Surface Water v1.4</strong> · Pekel, J.-F., Cottam, A., Gorelick, N., &amp; Belward, A. S. (2016). High-resolution mapping of global surface water and its long-term changes. <em>Nature</em>, 540 (7633), 418–422. <a href="https://doi.org/10.1038/nature20584">doi.org/10.1038/nature20584</a></li>
+      <li><strong>CHIRPS Daily v2.0</strong> · Funk, C. et al. (2015). The climate hazards infrared precipitation with stations — a new environmental record for monitoring extremes. <em>Scientific Data</em>, 2, 150066. <a href="https://doi.org/10.1038/sdata.2015.66">doi.org/10.1038/sdata.2015.66</a></li>
+    </ul>
+  </div>
+
+  <h3>Context & background</h3>
+  <div class="refs">
+    <ul>
+      <li><strong>UN DESA</strong> (2018). World Urbanization Prospects: The 2018 Revision. United Nations Department of Economic and Social Affairs, Population Division.</li>
+      <li><strong>Adelekan, I. O.</strong> (2016). Flood risk management in the coastal city of Lagos, Nigeria. <em>Journal of Flood Risk Management</em>, 9 (3), 255–264.</li>
+      <li><strong>Nkwunonwo, U. C., Whitworth, M., &amp; Baily, B.</strong> (2020). A review of the current status of flood modelling for urban flood risk management in the developing countries. <em>Scientific African</em>, 7, e00269.</li>
+      <li><strong>NIHSA</strong> · Nigeria Hydrological Services Agency. Annual Flood Outlook reports, 2018, 2021, 2024.</li>
+    </ul>
+  </div>
+
+  <h3>Software & libraries</h3>
+  <div class="refs">
+    <ul>
+      <li><strong>Google Earth Engine</strong> · Gorelick, N. et al. (2017). Google Earth Engine: Planetary-scale geospatial analysis for everyone. <em>Remote Sensing of Environment</em>, 202, 18–27.</li>
+      <li><strong>Leaflet</strong> · Agafonkin, V. (2010 – 2024). Leaflet — an open-source JavaScript library for mobile-friendly interactive maps. <a href="https://leafletjs.com/">leafletjs.com</a></li>
+      <li><strong>matplotlib</strong> · Hunter, J. D. (2007). Matplotlib: A 2D graphics environment. <em>Computing in Science &amp; Engineering</em>, 9 (3), 90–95.</li>
+      <li><strong>NumPy</strong> · Harris, C. R. et al. (2020). Array programming with NumPy. <em>Nature</em>, 585, 357–362.</li>
+    </ul>
+  </div>
+
+  <p class="dim" style="margin-top: 18px;">
+    Code, data processing notebooks, and the project's full reference list are documented in the
+    project repository: <a href="https://github.com/HaoyuJiang123/lagos-flood-viz">github.com/HaoyuJiang123/lagos-flood-viz</a>.
+    AI tools were used in drafting and analysis, as detailed in the Contributions Table of the Project Info File.
+  </p>
+</section>
+
+<footer>
+  CASA0029 · Urban Data Visualisation · 2025–26 ·
+  <a href="index.html">Return to interactive map</a> ·
+  <a href="https://github.com/HaoyuJiang123/lagos-flood-viz">Repository</a>
+</footer>
+
+</body>
+</html>
