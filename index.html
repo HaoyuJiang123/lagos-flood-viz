@@ -77,6 +77,25 @@
     color: var(--dim); font-size: 13.5px; line-height: 1.55;
     font-weight: 400;
   }
+  
+  .analysis-link {
+    display: inline-block;
+    margin-top: 14px;
+    margin-bottom: 14px;
+    padding: 8px 14px;
+    background: var(--warn);
+    color: var(--ink);
+    text-decoration: none;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    border-radius: 2px;
+    transition: background 0.2s;
+  }
+  .analysis-link:hover { background: var(--accent); }
+  
   .byline {
     margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--line);
     font-family: 'JetBrains Mono', monospace; font-size: 10.5px;
@@ -360,6 +379,7 @@
     <div class="eyebrow">CASA0029 · Urban Analytics</div>
     <h1>Lagos <em>Under Water</em>— mapping flood exposure across extreme rainfall events</h1>
     <p>Three 7-day rainfall events from 2015–2024 that ranked in the 95th percentile for Lagos were selected from CHIRPS satellite observations. For each, an Event-based Flood Exposure Index (EFEI) combines elevation, water proximity and rainfall intensity to show who is at risk when the storm hits.</p>
+    <a href="analysis.html" class="analysis-link">View full Analysis →</a>
     <div class="byline">Data · CHIRPS · NASADEM · JRC GSW · Computed in Google Earth Engine</div>
   </div>
 
